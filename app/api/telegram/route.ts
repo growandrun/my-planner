@@ -9,7 +9,12 @@ export const dynamic = "force-dynamic";
 const ALLOWED = () => Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 
 type State = {
-  step?: "type" | "title" | "memo" | "date" | "time" | "time_text" | "start" | "end" | "priority";
+  step?:
+    | "type" | "title" | "memo"
+    | "date" | "time" | "time_text"
+    | "start" | "start_time" | "start_time_text"
+    | "end" | "end_time" | "end_time_text"
+    | "priority";
   kind?: "todo" | "deadline";
   title?: string;
   memo?: string;
@@ -17,6 +22,8 @@ type State = {
   time?: string;
   start_date?: string;
   end_date?: string;
+  start_time?: string;
+  end_time?: string;
 };
 
 async function getState(chat_id: number): Promise<State> {
@@ -43,13 +50,13 @@ function dateKeyboard(prefix: string, base = new Date()) {
   }
   return { inline_keyboard: rows };
 }
-function timeKeyboard() {
+function timeKeyboard(prefix: string = "time") {
   const times = ["없음", "06:00", "08:00", "09:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "21:00", "22:00"];
   const rows: any[] = [];
   for (let i = 0; i < times.length; i += 4) {
-    rows.push(times.slice(i, i + 4).map((t) => ({ text: t, callback_data: `time:${t === "없음" ? "_" : t}` })));
+    rows.push(times.slice(i, i + 4).map((t) => ({ text: t, callback_data: `${prefix}:${t === "없음" ? "_" : t}` })));
   }
-  rows.push([{ text: "✍️ 직접 입력 (HH:MM)", callback_data: "time:__type__" }]);
+  rows.push([{ text: "✍️ 직접 입력 (HH:MM)", callback_data: `${prefix}:__type__` }]);
   return { inline_keyboard: rows };
 }
 function priorityKeyboard() {
@@ -137,16 +144,29 @@ export async function POST(req: NextRequest) {
       await sendMessage(chat_id, "메모를 입력하세요. (없으면 - 또는 'skip')");
       return NextResponse.json({ ok: true });
     }
-    if (state.step === "time_text") {
+    if (state.step === "time_text" || state.step === "start_time_text" || state.step === "end_time_text") {
       const m = /^([0-2]\d):([0-5]\d)$/.exec(text);
       if (!m || Number(m[1]) > 23) {
         await sendMessage(chat_id, "형식이 올바르지 않아요. <b>HH:MM</b> 5글자 (예: <code>18:30</code>)로 다시 입력해주세요.");
         return NextResponse.json({ ok: true });
       }
-      state.time = `${m[1]}:${m[2]}:00`;
-      state.step = "priority";
-      await setState(chat_id, state);
-      await sendMessage(chat_id, `시간: <b>${m[1]}:${m[2]}</b>\n중요도를 선택하세요.`, priorityKeyboard());
+      const tval = `${m[1]}:${m[2]}:00`;
+      if (state.step === "time_text") {
+        state.time = tval;
+        state.step = "priority";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `시간: <b>${m[1]}:${m[2]}</b>\n중요도를 선택하세요.`, priorityKeyboard());
+      } else if (state.step === "start_time_text") {
+        state.start_time = tval;
+        state.step = "end";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `시작 시간: <b>${m[1]}:${m[2]}</b>\n끝 날짜를 선택하세요.`, dateKeyboard("end", new Date(state.start_date!)));
+      } else {
+        state.end_time = tval;
+        state.step = "priority";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `끝 시간: <b>${m[1]}:${m[2]}</b>\n중요도를 선택하세요.`, priorityKeyboard());
+      }
       return NextResponse.json({ ok: true });
     }
     if (state.step === "memo") {
@@ -200,10 +220,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     if (k === "start" && state.step === "start") {
-      state.start_date = v; state.step = "end";
+      state.start_date = v; state.step = "start_time";
       await setState(chat_id, state);
-      const base = new Date(v);
-      await sendMessage(chat_id, "끝 날짜를 선택하세요.", dateKeyboard("end", base));
+      await sendMessage(chat_id, "시작 시간을 선택하세요.", timeKeyboard("stime"));
+      return NextResponse.json({ ok: true });
+    }
+    if (k === "stime" && state.step === "start_time") {
+      if (v === "__type__") {
+        state.step = "start_time_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "시작 시간을 <b>HH:MM</b> 형식으로 입력하세요. (예: <code>09:00</code>)");
+        return NextResponse.json({ ok: true });
+      }
+      state.start_time = v === "_" ? "" : v + ":00";
+      state.step = "end";
+      await setState(chat_id, state);
+      await sendMessage(chat_id, "끝 날짜를 선택하세요.", dateKeyboard("end", new Date(state.start_date!)));
       return NextResponse.json({ ok: true });
     }
     if (k === "end" && state.step === "end") {
@@ -211,7 +243,20 @@ export async function POST(req: NextRequest) {
         await sendMessage(chat_id, "끝 날짜는 시작 날짜 이후여야 해요. 다시 선택하세요.", dateKeyboard("end", new Date(state.start_date!)));
         return NextResponse.json({ ok: true });
       }
-      state.end_date = v; state.step = "priority";
+      state.end_date = v; state.step = "end_time";
+      await setState(chat_id, state);
+      await sendMessage(chat_id, "끝 시간을 선택하세요.", timeKeyboard("etime"));
+      return NextResponse.json({ ok: true });
+    }
+    if (k === "etime" && state.step === "end_time") {
+      if (v === "__type__") {
+        state.step = "end_time_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "끝 시간을 <b>HH:MM</b> 형식으로 입력하세요. (예: <code>18:30</code>)");
+        return NextResponse.json({ ok: true });
+      }
+      state.end_time = v === "_" ? "" : v + ":00";
+      state.step = "priority";
       await setState(chat_id, state);
       await sendMessage(chat_id, "중요도를 선택하세요.", priorityKeyboard());
       return NextResponse.json({ ok: true });
@@ -228,9 +273,13 @@ export async function POST(req: NextRequest) {
       } else {
         await db.from("deadlines").insert({
           title: state.title!, memo: state.memo || null,
-          start_date: state.start_date!, end_date: state.end_date!, priority,
+          start_date: state.start_date!, end_date: state.end_date!,
+          start_time: state.start_time || null, end_time: state.end_time || null,
+          priority,
         });
-        await sendMessage(chat_id, `✅ 데드라인 저장됨\n<b>${state.title}</b>\n${state.start_date} ~ ${state.end_date}${priority ? "\n" + "★".repeat(priority) : ""}${state.memo ? "\n💬 " + state.memo : ""}`);
+        const st = state.start_time ? " " + state.start_time.slice(0,5) : "";
+        const et = state.end_time ? " " + state.end_time.slice(0,5) : "";
+        await sendMessage(chat_id, `✅ 데드라인 저장됨\n<b>${state.title}</b>\n${state.start_date}${st} ~ ${state.end_date}${et}${priority ? "\n" + "★".repeat(priority) : ""}${state.memo ? "\n💬 " + state.memo : ""}`);
       }
       await clearState(chat_id);
       return NextResponse.json({ ok: true });

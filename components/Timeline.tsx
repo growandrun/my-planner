@@ -88,9 +88,9 @@ export default function Timeline({
                   }`}
                   style={{ left, width, top: d.lane * 32 }}
                   onClick={() => remove(d.id)}
-                  title={`${d.title} (${d.start_date} ~ ${d.end_date})${d.memo ? "\n" + d.memo : ""}`}
+                  title={`${d.title} (${d.start_date}${d.start_time ? " " + d.start_time.slice(0,5) : ""} ~ ${d.end_date}${d.end_time ? " " + d.end_time.slice(0,5) : ""})${d.memo ? "\n" + d.memo : ""}`}
                 >
-                  <span className="truncate">{d.title}</span>
+                  <span className="truncate">{d.title}{d.end_time ? ` →${d.end_time.slice(0,5)}` : ""}</span>
                   {d.priority > 0 && <span className="text-yellow-300 text-[10px]">{"★".repeat(d.priority)}</span>}
                 </div>
               );

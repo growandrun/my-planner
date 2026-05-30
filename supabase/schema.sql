@@ -21,12 +21,17 @@ create table if not exists deadlines (
   memo text,
   start_date date not null,
   end_date date not null,
+  start_time time,
+  end_time time,
   priority smallint not null default 0 check (priority between 0 and 5),
   done boolean not null default false,
   notified boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+-- Migration for existing tables:
+alter table deadlines add column if not exists start_time time;
+alter table deadlines add column if not exists end_time time;
 
 -- GOALS + SUBGOALS
 create table if not exists goals (

@@ -15,6 +15,8 @@ export type Deadline = {
   memo: string | null;
   start_date: string;
   end_date: string;
+  start_time: string | null;
+  end_time: string | null;
   priority: number;
   done: boolean;
   notified: boolean;

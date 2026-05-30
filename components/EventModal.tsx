@@ -18,6 +18,8 @@ export default function EventModal({
   const [date, setDate] = useState(today);
   const [time, setTime] = useState("");
   const [endDate, setEndDate] = useState(today);
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
@@ -37,6 +39,8 @@ export default function EventModal({
         memo: memo.trim() || null,
         start_date: date,
         end_date: endDate,
+        start_time: startTime || null,
+        end_time: endTime || null,
         priority,
       });
     }
@@ -66,12 +70,19 @@ export default function EventModal({
               className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" />
           </div>
         ) : (
-          <div className="flex gap-2">
-            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" />
-            <span className="self-center">~</span>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-              className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" />
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+                className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" />
+              <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" placeholder="시작 시간" />
+            </div>
+            <div className="flex gap-2">
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" />
+              <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)}
+                className="flex-1 bg-neutral-800 px-3 py-2 rounded outline-none" placeholder="끝 시간" />
+            </div>
           </div>
         )}
         <div>
