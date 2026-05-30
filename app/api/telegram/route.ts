@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const ALLOWED = () => Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 
 type State = {
-  step?: "type" | "title" | "memo" | "date" | "time" | "start" | "end" | "priority";
+  step?: "type" | "title" | "memo" | "date" | "time" | "time_text" | "start" | "end" | "priority";
   kind?: "todo" | "deadline";
   title?: string;
   memo?: string;
@@ -49,6 +49,7 @@ function timeKeyboard() {
   for (let i = 0; i < times.length; i += 4) {
     rows.push(times.slice(i, i + 4).map((t) => ({ text: t, callback_data: `time:${t === "없음" ? "_" : t}` })));
   }
+  rows.push([{ text: "✍️ 직접 입력 (HH:MM)", callback_data: "time:__type__" }]);
   return { inline_keyboard: rows };
 }
 function priorityKeyboard() {
@@ -136,6 +137,18 @@ export async function POST(req: NextRequest) {
       await sendMessage(chat_id, "메모를 입력하세요. (없으면 - 또는 'skip')");
       return NextResponse.json({ ok: true });
     }
+    if (state.step === "time_text") {
+      const m = /^([0-2]\d):([0-5]\d)$/.exec(text);
+      if (!m || Number(m[1]) > 23) {
+        await sendMessage(chat_id, "형식이 올바르지 않아요. <b>HH:MM</b> 5글자 (예: <code>18:30</code>)로 다시 입력해주세요.");
+        return NextResponse.json({ ok: true });
+      }
+      state.time = `${m[1]}:${m[2]}:00`;
+      state.step = "priority";
+      await setState(chat_id, state);
+      await sendMessage(chat_id, `시간: <b>${m[1]}:${m[2]}</b>\n중요도를 선택하세요.`, priorityKeyboard());
+      return NextResponse.json({ ok: true });
+    }
     if (state.step === "memo") {
       state.memo = (text === "-" || text.toLowerCase() === "skip") ? "" : text;
       if (state.kind === "todo") {
@@ -174,6 +187,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     if (k === "time" && state.step === "time") {
+      if (v === "__type__") {
+        state.step = "time_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "시간을 <b>HH:MM</b> 형식으로 입력하세요. (예: <code>18:30</code>, <code>15:23</code>)");
+        return NextResponse.json({ ok: true });
+      }
       state.time = v === "_" ? "" : v + ":00";
       state.step = "priority";
       await setState(chat_id, state);
