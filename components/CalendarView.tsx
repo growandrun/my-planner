@@ -30,13 +30,13 @@ export default function CalendarView({
 
   return (
     <div className="h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <div className="flex gap-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <div className="flex gap-1 items-center">
           <button onClick={() => setCursor(addMonths(cursor, -1))} className="px-2 py-1 bg-neutral-800 rounded">‹</button>
           <button onClick={() => setCursor(new Date())} className="px-2 py-1 bg-neutral-800 rounded text-xs">오늘</button>
           <button onClick={() => setCursor(addMonths(cursor, 1))} className="px-2 py-1 bg-neutral-800 rounded">›</button>
+          <h2 className="font-bold text-base sm:text-lg ml-2">{format(cursor, "yyyy년 M월")}</h2>
         </div>
-        <h2 className="font-bold text-lg">{format(cursor, "yyyy년 M월")}</h2>
         <div className="flex gap-1">
           <button onClick={() => onAdd(format(new Date(), "yyyy-MM-dd"))} className="text-xs bg-blue-600 px-2 py-1 rounded">+ 할 일</button>
           <button onClick={() => onAddDeadline(format(new Date(), "yyyy-MM-dd"))} className="text-xs bg-purple-600 px-2 py-1 rounded">+ 데드라인</button>
@@ -49,7 +49,7 @@ export default function CalendarView({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 flex-1 auto-rows-fr min-h-[60vh] lg:min-h-0">
         {days.map((d) => {
           const { t, d: dl } = eventsFor(d);
           const ds = format(d, "yyyy-MM-dd");
