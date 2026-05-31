@@ -1,0 +1,14 @@
+name: Motivate
+on:
+  schedule:
+    - cron: "0 * * * *"   # 매 시간 :00 (UTC) — endpoint가 KST 시간을 보고 7~24시만 발송
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Hit /api/motivate
+        run: |
+          BASE="${{ secrets.NOTIFY_URL }}"
+          BASE="${BASE%/api/notify}"
+          curl -fsS "$BASE/api/motivate?secret=${{ secrets.CRON_SECRET }}"
