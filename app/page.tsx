@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Todo, Deadline, Goal, SubGoal } from "@/lib/types";
+import { format } from "date-fns";
 import TodoSidebar from "@/components/TodoSidebar";
 import CalendarView from "@/components/CalendarView";
 import Timeline from "@/components/Timeline";
@@ -18,6 +19,7 @@ export default function Page() {
   const [subgoals, setSubgoals] = useState<SubGoal[]>([]);
   const [openModal, setOpenModal] = useState<null | { kind: "todo" | "deadline"; date?: string }>(null);
   const [tab, setTab] = useState<Tab>("calendar");
+  const [selectedDate, setSelectedDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
 
   async function load() {
     const [t, d, g, s] = await Promise.all([
@@ -44,19 +46,25 @@ export default function Page() {
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  // ── Desktop (lg+): 3-column ─────────────────────────────
   const desktop = (
     <div className="hidden lg:flex h-screen w-screen flex-row gap-2 p-2 overflow-hidden">
       <aside className="w-72 shrink-0 bg-neutral-900 rounded-xl p-3 overflow-y-auto">
-        <TodoSidebar todos={todos} onChange={load} onAdd={() => setOpenModal({ kind: "todo" })} />
+        <TodoSidebar
+          todos={todos} onChange={load}
+          selectedDate={selectedDate}
+          onSelectToday={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
+          onAdd={() => setOpenModal({ kind: "todo", date: selectedDate })}
+        />
         <MoneyPanel />
       </aside>
       <main className="flex-1 flex flex-col gap-2 min-w-0">
         <div className="flex-1 bg-neutral-900 rounded-xl p-3 overflow-auto">
           <CalendarView
             todos={todos} deadlines={deadlines}
-            onAdd={(d) => setOpenModal({ kind: "todo", date: d })}
-            onAddDeadline={(d) => setOpenModal({ kind: "deadline", date: d })}
+            selectedDate={selectedDate}
+            onSelectDate={setSelectedDate}
+            onAdd={() => setOpenModal({ kind: "todo", date: selectedDate })}
+            onAddDeadline={() => setOpenModal({ kind: "deadline", date: selectedDate })}
             onChange={load}
           />
         </div>
@@ -70,7 +78,6 @@ export default function Page() {
     </div>
   );
 
-  // ── Mobile: full-screen tabs ─────────────────────────────
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "calendar", label: "달력", icon: "📅" },
     { id: "timeline", label: "타임라인", icon: "📊" },
@@ -86,8 +93,10 @@ export default function Page() {
           {tab === "calendar" && (
             <CalendarView
               todos={todos} deadlines={deadlines}
-              onAdd={(d) => setOpenModal({ kind: "todo", date: d })}
-              onAddDeadline={(d) => setOpenModal({ kind: "deadline", date: d })}
+              selectedDate={selectedDate}
+              onSelectDate={(d) => { setSelectedDate(d); setTab("todos"); }}
+              onAdd={() => setOpenModal({ kind: "todo", date: selectedDate })}
+              onAddDeadline={() => setOpenModal({ kind: "deadline", date: selectedDate })}
               onChange={load}
             />
           )}
@@ -97,7 +106,12 @@ export default function Page() {
             </div>
           )}
           {tab === "todos" && (
-            <TodoSidebar todos={todos} onChange={load} onAdd={() => setOpenModal({ kind: "todo" })} />
+            <TodoSidebar
+              todos={todos} onChange={load}
+              selectedDate={selectedDate}
+              onSelectToday={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
+              onAdd={() => setOpenModal({ kind: "todo", date: selectedDate })}
+            />
           )}
           {tab === "goals" && (
             <GoalsSidebar goals={goals} subgoals={subgoals} onChange={load} />
@@ -105,7 +119,6 @@ export default function Page() {
           {tab === "money" && <MoneyPanel />}
         </div>
       </div>
-      {/* Bottom tab bar */}
       <nav className="fixed bottom-0 left-0 right-0 bg-neutral-950 border-t border-neutral-800 flex pb-[env(safe-area-inset-bottom)]">
         {tabs.map((t) => (
           <button

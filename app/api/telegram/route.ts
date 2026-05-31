@@ -132,7 +132,32 @@ export async function POST(req: NextRequest) {
     }
     if (text === "/help") {
       await sendMessage(chat_id,
-        "<b>명령어</b>\n/new - 새 항목 추가\n/today - 오늘 일정\n/list - 다가오는 할 일\n/web - 웹사이트 열기\n/balance - 잔액/오늘 지출\n/spend - 지출 기록 (지출처 금액 [메모])\n/setbalance - 잔액 직접 설정\n/cancel - 입력 취소\n/help - 도움말");
+        "<b>명령어</b>\n/new - 새 항목 추가\n/today - 오늘 일정\n/list - 다가오는 할 일\n/done - 완료 토글 (오늘+활성 데드라인)\n/web - 웹사이트 열기\n/balance - 잔액/오늘 지출\n/spend - 지출 기록 (지출처 금액 [메모])\n/setbalance - 잔액 직접 설정\n/cancel - 입력 취소\n/help - 도움말");
+      return NextResponse.json({ ok: true });
+    }
+    if (text === "/done") {
+      const db = supabaseAdmin();
+      const today = format(new Date(), "yyyy-MM-dd");
+      const { data: ts } = await db.from("todos").select("id,title,done,due_time").eq("due_date", today).order("due_time", { nullsFirst: true });
+      const { data: ds } = await db.from("deadlines").select("id,title,done,start_date,end_date").lte("start_date", today).gte("end_date", today);
+      const rows: any[] = [];
+      for (const t of ts || []) {
+        rows.push([{
+          text: `${t.done ? "✅" : "⬜"} ${t.due_time ? t.due_time.slice(0,5) + " " : ""}${t.title}`,
+          callback_data: `done:t:${t.id}`,
+        }]);
+      }
+      for (const d of ds || []) {
+        rows.push([{
+          text: `${d.done ? "✅" : "⬜"} [기간] ${d.title}`,
+          callback_data: `done:d:${d.id}`,
+        }]);
+      }
+      if (rows.length === 0) {
+        await sendMessage(chat_id, "오늘 항목이 없습니다.");
+      } else {
+        await sendMessage(chat_id, "토글할 항목을 선택하세요:", { inline_keyboard: rows });
+      }
       return NextResponse.json({ ok: true });
     }
     if (text === "/web" || text === "/open" || text === "/site") {
@@ -259,6 +284,17 @@ export async function POST(req: NextRequest) {
     const [k, v] = data.split(":");
     await answerCallback(cb.id);
 
+    if (k === "done") {
+      const [, kind, id] = data.split(":");
+      const table = kind === "t" ? "todos" : "deadlines";
+      const db = supabaseAdmin();
+      const { data: row } = await db.from(table).select("done,title").eq("id", id).maybeSingle();
+      if (row) {
+        await db.from(table).update({ done: !row.done }).eq("id", id);
+        await sendMessage(chat_id, `${!row.done ? "✅ 완료" : "⬜ 미완료"}: ${row.title}`);
+      }
+      return NextResponse.json({ ok: true });
+    }
     if (k === "kind") {
       state.kind = v as any;
       state.step = "title";

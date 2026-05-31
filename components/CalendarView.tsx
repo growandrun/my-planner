@@ -6,11 +6,13 @@ import {
 import type { Todo, Deadline } from "@/lib/types";
 
 export default function CalendarView({
-  todos, deadlines, onAdd, onAddDeadline, onChange,
+  todos, deadlines, onAdd, onAddDeadline, onChange, selectedDate, onSelectDate,
 }: {
   todos: Todo[]; deadlines: Deadline[];
-  onAdd: (date: string) => void;
-  onAddDeadline: (date: string) => void;
+  selectedDate: string;
+  onSelectDate: (d: string) => void;
+  onAdd: () => void;
+  onAddDeadline: () => void;
   onChange: () => void;
 }) {
   const [cursor, setCursor] = useState(new Date());
@@ -38,8 +40,8 @@ export default function CalendarView({
           <h2 className="font-bold text-base sm:text-lg ml-2">{format(cursor, "yyyy년 M월")}</h2>
         </div>
         <div className="flex gap-1">
-          <button onClick={() => onAdd(format(new Date(), "yyyy-MM-dd"))} className="text-xs bg-blue-600 px-2 py-1 rounded">+ 할 일</button>
-          <button onClick={() => onAddDeadline(format(new Date(), "yyyy-MM-dd"))} className="text-xs bg-purple-600 px-2 py-1 rounded">+ 데드라인</button>
+          <button onClick={onAdd} className="text-xs bg-blue-600 px-2 py-1 rounded">+ 할 일</button>
+          <button onClick={onAddDeadline} className="text-xs bg-purple-600 px-2 py-1 rounded">+ 데드라인</button>
         </div>
       </div>
 
@@ -53,21 +55,26 @@ export default function CalendarView({
         {days.map((d) => {
           const { t, d: dl } = eventsFor(d);
           const ds = format(d, "yyyy-MM-dd");
+          const isSel = ds === selectedDate;
           return (
             <button
               key={ds}
-              onClick={() => onAdd(ds)}
+              onClick={() => onSelectDate(ds)}
               className={`text-left p-1 rounded border min-h-[72px] flex flex-col ${
                 isSameMonth(d, cursor) ? "border-neutral-800 bg-neutral-950" : "border-transparent bg-neutral-900/50 text-neutral-600"
-              } ${isToday(d) ? "ring-2 ring-blue-500" : ""} hover:bg-neutral-800`}
+              } ${isToday(d) ? "ring-2 ring-blue-500" : ""} ${isSel ? "bg-blue-950 border-blue-500" : ""} hover:bg-neutral-800`}
             >
               <div className="text-xs">{format(d, "d")}</div>
               <div className="space-y-0.5 mt-0.5">
                 {dl.map((x) => (
-                  <div key={x.id} className="truncate text-[10px] bg-purple-700/60 px-1 rounded">{x.title}</div>
+                  <div key={x.id}
+                    className={`truncate text-[10px] px-1 rounded ${x.done ? "bg-neutral-700 line-through opacity-50 text-neutral-400" : "bg-purple-700/60"}`}>
+                    {x.title}
+                  </div>
                 ))}
                 {t.map((x) => (
-                  <div key={x.id} className={`truncate text-[10px] bg-blue-700/60 px-1 rounded ${x.done ? "line-through opacity-50" : ""}`}>
+                  <div key={x.id}
+                    className={`truncate text-[10px] px-1 rounded ${x.done ? "bg-neutral-700 line-through opacity-50 text-neutral-400" : "bg-blue-700/60"}`}>
                     {x.title}
                   </div>
                 ))}
