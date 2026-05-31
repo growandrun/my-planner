@@ -75,3 +75,25 @@ create policy "anon_all_subgoals" on subgoals for all using (true) with check (t
 create index if not exists idx_todos_due on todos(due_date);
 create index if not exists idx_deadlines_range on deadlines(start_date, end_date);
 create index if not exists idx_subgoals_goal on subgoals(goal_id);
+
+-- Expenses & settings
+create table if not exists expenses (
+  id uuid primary key default gen_random_uuid(),
+  spent_at date not null default current_date,
+  place text not null,
+  memo text,
+  amount integer not null,
+  created_at timestamptz not null default now()
+);
+alter table expenses enable row level security;
+create policy "anon_all_expenses" on expenses for all using (true) with check (true);
+create index if not exists idx_expenses_spent_at on expenses(spent_at);
+
+create table if not exists settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table settings enable row level security;
+create policy "anon_all_settings" on settings for all using (true) with check (true);
+insert into settings(key, value) values ('starting_balance', '503339') on conflict (key) do nothing;

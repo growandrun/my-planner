@@ -29,6 +29,14 @@ export type Goal = {
   target_date: string | null;
 };
 
+export type Expense = {
+  id: string;
+  spent_at: string;
+  place: string;
+  memo: string | null;
+  amount: number;
+};
+
 export type SubGoal = {
   id: string;
   goal_id: string;

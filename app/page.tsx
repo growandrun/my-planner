@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Todo, Deadline, Goal, SubGoal } from "@/lib/types";
 import TodoSidebar from "@/components/TodoSidebar";
+import MoneyPanel from "@/components/MoneyPanel";
 import CalendarView from "@/components/CalendarView";
 import Timeline from "@/components/Timeline";
 import GoalsSidebar from "@/components/GoalsSidebar";
@@ -46,6 +47,7 @@ export default function Page() {
       {/* Left: today's todos */}
       <aside className="lg:w-72 lg:shrink-0 bg-neutral-900 rounded-xl p-3 overflow-y-auto">
         <TodoSidebar todos={todos} onChange={load} onAdd={() => setOpenModal({ kind: "todo" })} />
+        <MoneyPanel />
       </aside>
 
       {/* Main: calendar on top, horizontal timeline bottom */}
