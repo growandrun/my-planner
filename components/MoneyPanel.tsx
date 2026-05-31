@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { Expense } from "@/lib/types";
 import { format } from "date-fns";
+import MoneyStats from "./MoneyStats";
 
 const fmt = (n: number) => n.toLocaleString("ko-KR") + "원";
 
@@ -14,6 +15,7 @@ export default function MoneyPanel() {
   const [amount, setAmount] = useState("");
   const [editingBalance, setEditingBalance] = useState(false);
   const [newBalance, setNewBalance] = useState("");
+  const [showStats, setShowStats] = useState(false);
 
   const today = format(new Date(), "yyyy-MM-dd");
 
@@ -65,10 +67,14 @@ export default function MoneyPanel() {
     <div className="space-y-2 mt-6 pt-4 border-t border-neutral-800">
       <div className="flex items-center justify-between">
         <h2 className="font-bold text-lg">💰 돈 관리</h2>
-        <button onClick={() => { setEditingBalance(!editingBalance); setNewBalance(String(balance)); }} className="text-[10px] text-neutral-400 underline">
-          {editingBalance ? "닫기" : "잔액 수정"}
-        </button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowStats(true)} className="text-[10px] text-blue-400 underline">📊 통계</button>
+          <button onClick={() => { setEditingBalance(!editingBalance); setNewBalance(String(balance)); }} className="text-[10px] text-neutral-400 underline">
+            {editingBalance ? "닫기" : "잔액 수정"}
+          </button>
+        </div>
       </div>
+      {showStats && <MoneyStats onClose={() => setShowStats(false)} />}
 
       {editingBalance ? (
         <div className="flex gap-1">
