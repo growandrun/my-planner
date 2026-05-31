@@ -49,7 +49,7 @@ export default function CalendarView({
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5 sm:gap-1 flex-1 auto-rows-fr min-h-[60vh] lg:min-h-0">
+      <div className="grid grid-cols-7 gap-0.5 sm:gap-1">
         {days.map((d) => {
           const { t, d: dl } = eventsFor(d);
           const ds = format(d, "yyyy-MM-dd");
@@ -57,23 +57,20 @@ export default function CalendarView({
             <button
               key={ds}
               onClick={() => onAdd(ds)}
-              className={`text-left p-1 rounded border ${
+              className={`text-left p-1 rounded border min-h-[72px] flex flex-col ${
                 isSameMonth(d, cursor) ? "border-neutral-800 bg-neutral-950" : "border-transparent bg-neutral-900/50 text-neutral-600"
-              } ${isToday(d) ? "ring-2 ring-blue-500" : ""} hover:bg-neutral-800 overflow-hidden`}
+              } ${isToday(d) ? "ring-2 ring-blue-500" : ""} hover:bg-neutral-800`}
             >
               <div className="text-xs">{format(d, "d")}</div>
               <div className="space-y-0.5 mt-0.5">
-                {dl.slice(0, 2).map((x) => (
+                {dl.map((x) => (
                   <div key={x.id} className="truncate text-[10px] bg-purple-700/60 px-1 rounded">{x.title}</div>
                 ))}
-                {t.slice(0, 2).map((x) => (
+                {t.map((x) => (
                   <div key={x.id} className={`truncate text-[10px] bg-blue-700/60 px-1 rounded ${x.done ? "line-through opacity-50" : ""}`}>
                     {x.title}
                   </div>
                 ))}
-                {t.length + dl.length > 4 && (
-                  <div className="text-[10px] text-neutral-400">+{t.length + dl.length - 4}</div>
-                )}
               </div>
             </button>
           );
