@@ -11,9 +11,9 @@ const ALLOWED = () => Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
 type State = {
   step?:
     | "type" | "title" | "memo"
-    | "date" | "time" | "time_text"
-    | "start" | "start_time" | "start_time_text"
-    | "end" | "end_time" | "end_time_text"
+    | "date" | "date_text" | "time" | "time_text"
+    | "start" | "start_text" | "start_time" | "start_time_text"
+    | "end" | "end_text" | "end_time" | "end_time_text"
     | "priority";
   kind?: "todo" | "deadline";
   title?: string;
@@ -48,7 +48,38 @@ function dateKeyboard(prefix: string, base = new Date()) {
     }
     rows.push(row);
   }
+  rows.push([{ text: "✍️ 직접 입력 (MM-DD)", callback_data: `${prefix}:__type__` }]);
   return { inline_keyboard: rows };
+}
+
+function parseDateText(text: string): string | null {
+  const t = text.trim();
+  // YYYY-MM-DD or YYYY/MM/DD or YYYY.MM.DD
+  let m = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(t);
+  if (m) {
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
+  }
+  // MM-DD / MM/DD / MM.DD / M.D etc → current year
+  m = /^(\d{1,2})[-/.](\d{1,2})$/.exec(t);
+  if (m) {
+    const mo = +m[1], d = +m[2];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      const y = new Date().getFullYear();
+      return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
+  }
+  // Compact 8-digit YYYYMMDD
+  m = /^(\d{4})(\d{2})(\d{2})$/.exec(t);
+  if (m) {
+    const y = +m[1], mo = +m[2], d = +m[3];
+    if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
+      return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+    }
+  }
+  return null;
 }
 function timeKeyboard(prefix: string = "time") {
   const times = ["없음", "06:00", "08:00", "09:00", "10:00", "12:00", "14:00", "16:00", "18:00", "20:00", "21:00", "22:00"];
@@ -235,6 +266,31 @@ export async function POST(req: NextRequest) {
       await sendMessage(chat_id, "메모를 입력하세요. (없으면 - 또는 'skip')");
       return NextResponse.json({ ok: true });
     }
+    if (state.step === "date_text" || state.step === "start_text" || state.step === "end_text") {
+      const parsed = parseDateText(text);
+      if (!parsed) {
+        await sendMessage(chat_id, "형식이 올바르지 않아요. <b>MM-DD</b> 또는 <b>YYYY-MM-DD</b> 로 다시 입력하세요.\n예: <code>06-15</code> / <code>2026-06-15</code>");
+        return NextResponse.json({ ok: true });
+      }
+      if (state.step === "date_text") {
+        state.date = parsed; state.step = "time";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `날짜: <b>${parsed}</b>\n시간을 선택하세요.`, timeKeyboard());
+      } else if (state.step === "start_text") {
+        state.start_date = parsed; state.step = "start_time";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `시작 날짜: <b>${parsed}</b>\n시작 시간을 선택하세요.`, timeKeyboard("stime"));
+      } else {
+        if (parsed < (state.start_date || "")) {
+          await sendMessage(chat_id, `끝 날짜(${parsed})는 시작 날짜(${state.start_date}) 이후여야 해요. 다시 입력하세요.`);
+          return NextResponse.json({ ok: true });
+        }
+        state.end_date = parsed; state.step = "end_time";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, `끝 날짜: <b>${parsed}</b>\n끝 시간을 선택하세요.`, timeKeyboard("etime"));
+      }
+      return NextResponse.json({ ok: true });
+    }
     if (state.step === "time_text" || state.step === "start_time_text" || state.step === "end_time_text") {
       const m = /^([0-2]\d):([0-5]\d)$/.exec(text);
       if (!m || Number(m[1]) > 23) {
@@ -303,6 +359,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     if (k === "date" && state.step === "date") {
+      if (v === "__type__") {
+        state.step = "date_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "날짜를 입력하세요. <b>MM-DD</b> 또는 <b>YYYY-MM-DD</b>\n예: <code>06-15</code> 또는 <code>2026-06-15</code>");
+        return NextResponse.json({ ok: true });
+      }
       state.date = v; state.step = "time";
       await setState(chat_id, state);
       await sendMessage(chat_id, "시간을 선택하세요.", timeKeyboard());
@@ -322,6 +384,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     if (k === "start" && state.step === "start") {
+      if (v === "__type__") {
+        state.step = "start_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "시작 날짜를 입력하세요. <b>MM-DD</b> 또는 <b>YYYY-MM-DD</b>\n예: <code>06-15</code>");
+        return NextResponse.json({ ok: true });
+      }
       state.start_date = v; state.step = "start_time";
       await setState(chat_id, state);
       await sendMessage(chat_id, "시작 시간을 선택하세요.", timeKeyboard("stime"));
@@ -341,6 +409,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
     if (k === "end" && state.step === "end") {
+      if (v === "__type__") {
+        state.step = "end_text";
+        await setState(chat_id, state);
+        await sendMessage(chat_id, "끝 날짜를 입력하세요. <b>MM-DD</b> 또는 <b>YYYY-MM-DD</b>\n예: <code>06-20</code>");
+        return NextResponse.json({ ok: true });
+      }
       if (v < (state.start_date || "")) {
         await sendMessage(chat_id, "끝 날짜는 시작 날짜 이후여야 해요. 다시 선택하세요.", dateKeyboard("end", new Date(state.start_date!)));
         return NextResponse.json({ ok: true });
