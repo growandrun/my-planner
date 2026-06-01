@@ -2,9 +2,59 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body { height: 100%; background: #0b0d12; color: #e5e7eb; }
+html, body { height: 100%; background: #0b0d12; color: #e5e7eb; transition: background-color 0.2s, color 0.2s; }
 * { -webkit-tap-highlight-color: transparent; }
 
 /* Hide scrollbar for horizontal timeline */
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ───────────────────────────────────────────
+   Light mode — applied when <html class="light">
+   Overrides the existing dark Tailwind classes
+   ─────────────────────────────────────────── */
+html.light, html.light body { background: #f7f8fa; color: #111827; }
+
+html.light .bg-neutral-900,
+html.light .bg-neutral-900\/50,
+html.light .bg-neutral-900\/60 { background-color: #ffffff !important; }
+
+html.light .bg-neutral-950 { background-color: #fafafa !important; }
+
+html.light .bg-neutral-800,
+html.light .bg-neutral-800\/40,
+html.light .bg-neutral-800\/50,
+html.light .bg-neutral-800\/60 { background-color: #eef2f6 !important; }
+
+html.light .bg-neutral-700 { background-color: #d6dbe2 !important; }
+
+html.light .text-neutral-300 { color: #374151 !important; }
+html.light .text-neutral-400 { color: #4b5563 !important; }
+html.light .text-neutral-500 { color: #6b7280 !important; }
+html.light .text-neutral-600 { color: #9ca3af !important; }
+
+html.light .border-neutral-800 { border-color: #e5e7eb !important; }
+html.light .border-neutral-700 { border-color: #d1d5db !important; }
+
+/* Translucent overlays soften for light bg */
+html.light .bg-black\/60 { background-color: rgba(17,24,39,0.35) !important; }
+html.light .bg-black\/80 { background-color: rgba(17,24,39,0.45) !important; }
+
+/* Input/text default contrasts */
+html.light input,
+html.light textarea { color: #111827; }
+
+/* Strong colored backgrounds tone down slightly for legibility */
+html.light .bg-blue-700\/60 { background-color: rgba(37, 99, 235, 0.85) !important; color: #fff; }
+html.light .bg-purple-700\/60 { background-color: rgba(126, 34, 206, 0.85) !important; color: #fff; }
+html.light .bg-green-900\/20 { background-color: rgba(34, 197, 94, 0.15) !important; }
+
+/* Bottom tab bar */
+html.light nav.bg-neutral-950 { background-color: #ffffff !important; border-top-color: #e5e7eb !important; }
+
+/* Theme toggle button in light mode */
+html.light button[aria-label="테마 전환"] {
+  background-color: #ffffff !important;
+  border-color: #d1d5db !important;
+  color: #111827;
+}

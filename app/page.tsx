@@ -9,6 +9,7 @@ import Timeline from "@/components/Timeline";
 import GoalsSidebar from "@/components/GoalsSidebar";
 import EventModal from "@/components/EventModal";
 import MoneyPanel from "@/components/MoneyPanel";
+import ThemeToggle from "@/components/ThemeToggle";
 
 type Tab = "calendar" | "timeline" | "todos" | "goals" | "money";
 
@@ -138,6 +139,7 @@ export default function Page() {
 
   return (
     <>
+      <ThemeToggle />
       {desktop}
       {mobile}
       {openModal && (

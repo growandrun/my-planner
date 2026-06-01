@@ -66,12 +66,6 @@ export default function CalendarView({
             >
               <div className="text-xs">{format(d, "d")}</div>
               <div className="space-y-0.5 mt-0.5">
-                {dl.map((x) => (
-                  <div key={x.id}
-                    className={`truncate text-[10px] px-1 rounded ${x.done ? "bg-neutral-700 line-through opacity-50 text-neutral-400" : "bg-purple-700/60"}`}>
-                    {x.title}
-                  </div>
-                ))}
                 {t.map((x) => (
                   <div key={x.id}
                     className={`truncate text-[10px] px-1 rounded ${x.done ? "bg-neutral-700 line-through opacity-50 text-neutral-400" : "bg-blue-700/60"}`}>
