@@ -89,6 +89,18 @@ alter table expenses enable row level security;
 create policy "anon_all_expenses" on expenses for all using (true) with check (true);
 create index if not exists idx_expenses_spent_at on expenses(spent_at);
 
+create table if not exists incomes (
+  id uuid primary key default gen_random_uuid(),
+  earned_at date not null default current_date,
+  source text not null,
+  memo text,
+  amount integer not null,
+  created_at timestamptz not null default now()
+);
+alter table incomes enable row level security;
+create policy "anon_all_incomes" on incomes for all using (true) with check (true);
+create index if not exists idx_incomes_earned_at on incomes(earned_at);
+
 create table if not exists settings (
   key text primary key,
   value jsonb not null,

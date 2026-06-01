@@ -19,10 +19,12 @@ export async function GET(req: NextRequest) {
 
   const db = supabaseAdmin();
   const { data: setting } = await db.from("settings").select("value").eq("key", "starting_balance").maybeSingle();
-  const { data: all } = await db.from("expenses").select("amount");
+  const { data: exps } = await db.from("expenses").select("amount");
+  const { data: incs } = await db.from("incomes").select("amount");
   const start = Number(setting?.value ?? 0);
-  const total = (all || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
-  const balance = start - total;
+  const totalSpent = (exps || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const totalEarned = (incs || []).reduce((s: number, e: any) => s + Number(e.amount), 0);
+  const balance = start - totalSpent + totalEarned;
 
   const msg = pickMotivation(hour, balance);
   if (!msg) return NextResponse.json({ ok: true, skipped: true, hour });

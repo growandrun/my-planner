@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     }
     if (text === "/help") {
       await sendMessage(chat_id,
-        "<b>명령어</b>\n/new - 새 항목 추가\n/today - 오늘 일정\n/list - 다가오는 할 일\n/done - 완료 토글 (오늘+활성 데드라인)\n/web - 웹사이트 열기\n/balance - 잔액/오늘 지출\n/spend - 지출 기록 (지출처 금액 [메모])\n/setbalance - 잔액 직접 설정\n/cancel - 입력 취소\n/help - 도움말");
+        "<b>명령어</b>\n/new - 새 항목 추가\n/today - 오늘 일정\n/list - 다가오는 할 일\n/done - 완료 토글 (오늘+활성 데드라인)\n/web - 웹사이트 열기\n/balance - 잔액/오늘 지출/수입\n/spend - 지출 기록 (지출처 금액 [메모])\n/earn - 수입 기록 (출처 금액 [메모])\n/setbalance - 잔액 직접 설정\n/cancel - 입력 취소\n/help - 도움말");
       return NextResponse.json({ ok: true });
     }
     if (text === "/done") {
@@ -202,44 +202,58 @@ export async function POST(req: NextRequest) {
       const db = supabaseAdmin();
       const today = format(new Date(), "yyyy-MM-dd");
       const { data: setting } = await db.from("settings").select("value").eq("key", "starting_balance").maybeSingle();
-      const { data: all } = await db.from("expenses").select("amount,spent_at,place,memo");
+      const { data: exps } = await db.from("expenses").select("amount,spent_at,place,memo");
+      const { data: incs } = await db.from("incomes").select("amount,earned_at,source,memo");
       const start = Number(setting?.value ?? 0);
-      const total = (all || []).reduce((s: number, e: any) => s + e.amount, 0);
-      const todayList = (all || []).filter((e: any) => e.spent_at === today);
-      const todaySum = todayList.reduce((s: number, e: any) => s + e.amount, 0);
+      const totalSpent = (exps || []).reduce((s: number, e: any) => s + e.amount, 0);
+      const totalEarned = (incs || []).reduce((s: number, e: any) => s + e.amount, 0);
+      const todayExp = (exps || []).filter((e: any) => e.spent_at === today);
+      const todayInc = (incs || []).filter((e: any) => e.earned_at === today);
+      const todaySpent = todayExp.reduce((s: number, e: any) => s + e.amount, 0);
+      const todayEarned = todayInc.reduce((s: number, e: any) => s + e.amount, 0);
       const fmt = (n: number) => n.toLocaleString("ko-KR") + "원";
-      let out = `💰 <b>잔액: ${fmt(start - total)}</b>\n오늘 지출: ${fmt(todaySum)}\n\n오늘 내역:`;
-      out += "\n" + (todayList.map((e: any) => `• ${e.place} ${e.memo ? "(" + e.memo + ") " : ""}${fmt(e.amount)}`).join("\n") || "  없음");
+      let out = `💰 <b>잔액: ${fmt(start - totalSpent + totalEarned)}</b>\n오늘 지출: ${fmt(todaySpent)} / 수입: ${fmt(todayEarned)}\n\n`;
+      out += "오늘 수입:\n" + (todayInc.map((e: any) => `• +${fmt(e.amount)} ${e.source}${e.memo ? " (" + e.memo + ")" : ""}`).join("\n") || "  없음");
+      out += "\n\n오늘 지출:\n" + (todayExp.map((e: any) => `• −${fmt(e.amount)} ${e.place}${e.memo ? " (" + e.memo + ")" : ""}`).join("\n") || "  없음");
       await sendMessage(chat_id, out);
       return NextResponse.json({ ok: true });
     }
-    if (text.startsWith("/spend")) {
-      // Usage: /spend <지출처> <금액> [메모...]
-      const args = text.slice(6).trim();
+    if (text.startsWith("/spend") || text.startsWith("/earn")) {
+      const isEarn = text.startsWith("/earn");
+      const args = text.slice(isEarn ? 5 : 6).trim();
+      const example = isEarn
+        ? "<code>/earn 월급 2500000 6월급여</code>\n순서: 출처 금액 [메모]"
+        : "<code>/spend 스타벅스 4500 카페라떼</code>\n순서: 지출처 금액 [메모]";
       if (!args) {
-        await sendMessage(chat_id, "사용법: <code>/spend 스타벅스 4500 카페라떼</code>\n순서: 지출처 금액 [메모]");
+        await sendMessage(chat_id, `사용법: ${example}`);
         return NextResponse.json({ ok: true });
       }
-      // Parse: first token = place, second numeric = amount, rest = memo
       const parts = args.split(/\s+/);
-      // Find first pure-number token
       let amtIdx = parts.findIndex((p) => /^-?\d[\d,]*$/.test(p));
       if (amtIdx < 1) {
-        await sendMessage(chat_id, "형식이 올바르지 않아요. 예: <code>/spend 스타벅스 4500 메모</code>");
+        await sendMessage(chat_id, `형식이 올바르지 않아요. 예: ${example}`);
         return NextResponse.json({ ok: true });
       }
-      const place = parts.slice(0, amtIdx).join(" ");
+      const label = parts.slice(0, amtIdx).join(" ");
       const amount = Number(parts[amtIdx].replace(/,/g, ""));
       const memo = parts.slice(amtIdx + 1).join(" ") || null;
       const db = supabaseAdmin();
       const today = format(new Date(), "yyyy-MM-dd");
-      await db.from("expenses").insert({ spent_at: today, place, memo, amount });
+      if (isEarn) {
+        await db.from("incomes").insert({ earned_at: today, source: label, memo, amount });
+      } else {
+        await db.from("expenses").insert({ spent_at: today, place: label, memo, amount });
+      }
       const { data: setting } = await db.from("settings").select("value").eq("key", "starting_balance").maybeSingle();
-      const { data: all } = await db.from("expenses").select("amount");
+      const { data: exps } = await db.from("expenses").select("amount");
+      const { data: incs } = await db.from("incomes").select("amount");
       const start = Number(setting?.value ?? 0);
-      const total = (all || []).reduce((s: number, e: any) => s + e.amount, 0);
+      const totalSpent = (exps || []).reduce((s: number, e: any) => s + e.amount, 0);
+      const totalEarned = (incs || []).reduce((s: number, e: any) => s + e.amount, 0);
       const fmt = (n: number) => n.toLocaleString("ko-KR") + "원";
-      await sendMessage(chat_id, `✅ 기록됨\n${place} ${fmt(amount)}${memo ? "\n💬 " + memo : ""}\n\n잔액: <b>${fmt(start - total)}</b>`);
+      const sign = isEarn ? "+" : "−";
+      const head = isEarn ? "💵 수입 기록됨" : "💸 지출 기록됨";
+      await sendMessage(chat_id, `${head}\n${label} ${sign}${fmt(amount)}${memo ? "\n💬 " + memo : ""}\n\n잔액: <b>${fmt(start - totalSpent + totalEarned)}</b>`);
       return NextResponse.json({ ok: true });
     }
     if (text.startsWith("/setbalance")) {
@@ -250,9 +264,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ ok: true });
       }
       const db = supabaseAdmin();
-      const { data: all } = await db.from("expenses").select("amount");
-      const total = (all || []).reduce((s: number, e: any) => s + e.amount, 0);
-      await db.from("settings").upsert({ key: "starting_balance", value: (n + total) as any, updated_at: new Date().toISOString() });
+      const { data: exps } = await db.from("expenses").select("amount");
+      const { data: incs } = await db.from("incomes").select("amount");
+      const totalSpent = (exps || []).reduce((s: number, e: any) => s + e.amount, 0);
+      const totalEarned = (incs || []).reduce((s: number, e: any) => s + e.amount, 0);
+      await db.from("settings").upsert({ key: "starting_balance", value: (n + totalSpent - totalEarned) as any, updated_at: new Date().toISOString() });
       const fmt = (x: number) => x.toLocaleString("ko-KR") + "원";
       await sendMessage(chat_id, `잔액을 <b>${fmt(n)}</b>으로 설정했습니다.`);
       return NextResponse.json({ ok: true });

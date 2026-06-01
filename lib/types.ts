@@ -37,6 +37,14 @@ export type Expense = {
   amount: number;
 };
 
+export type Income = {
+  id: string;
+  earned_at: string;
+  source: string;
+  memo: string | null;
+  amount: number;
+};
+
 export type SubGoal = {
   id: string;
   goal_id: string;
