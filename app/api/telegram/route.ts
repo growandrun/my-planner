@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendMessage, editMessage, answerCallback } from "@/lib/telegram";
 import { addDays, format } from "date-fns";
+import { kstYMD } from "@/lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -67,7 +68,7 @@ function parseDateText(text: string): string | null {
   if (m) {
     const mo = +m[1], d = +m[2];
     if (mo >= 1 && mo <= 12 && d >= 1 && d <= 31) {
-      const y = new Date().getFullYear();
+      const y = Number(kstYMD().slice(0, 4));
       return `${y}-${String(mo).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
     }
   }
@@ -145,7 +146,7 @@ export async function POST(req: NextRequest) {
     }
     if (text === "/list" || text === "/today") {
       const db = supabaseAdmin();
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = kstYMD();
       const { data: todos } = await db.from("todos").select("*").gte("due_date", today).order("due_date").limit(20);
       const { data: dls } = await db.from("deadlines").select("*").lte("start_date", today).gte("end_date", today);
       let out = `<b>오늘 (${today})</b>\n`;
@@ -168,7 +169,7 @@ export async function POST(req: NextRequest) {
     }
     if (text === "/done") {
       const db = supabaseAdmin();
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = kstYMD();
       const { data: ts } = await db.from("todos").select("id,title,done,due_time").eq("due_date", today).order("due_time", { nullsFirst: true });
       const { data: ds } = await db.from("deadlines").select("id,title,done,start_date,end_date").lte("start_date", today).gte("end_date", today);
       const rows: any[] = [];
@@ -200,7 +201,7 @@ export async function POST(req: NextRequest) {
     }
     if (text === "/balance") {
       const db = supabaseAdmin();
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = kstYMD();
       const { data: setting } = await db.from("settings").select("value").eq("key", "starting_balance").maybeSingle();
       const { data: exps } = await db.from("expenses").select("amount,spent_at,place,memo");
       const { data: incs } = await db.from("incomes").select("amount,earned_at,source,memo");
@@ -238,7 +239,7 @@ export async function POST(req: NextRequest) {
       const amount = Number(parts[amtIdx].replace(/,/g, ""));
       const memo = parts.slice(amtIdx + 1).join(" ") || null;
       const db = supabaseAdmin();
-      const today = format(new Date(), "yyyy-MM-dd");
+      const today = kstYMD();
       if (isEarn) {
         await db.from("incomes").insert({ earned_at: today, source: label, memo, amount });
       } else {

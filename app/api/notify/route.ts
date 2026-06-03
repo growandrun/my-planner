@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { sendMessage } from "@/lib/telegram";
-import { format, addMinutes } from "date-fns";
+import { addMinutes } from "date-fns";
+import { kstYMD, kstWallTimeToInstant } from "@/lib/time";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/notify?secret=...
-// Run every few minutes via Vercel Cron or GitHub Actions
 export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const secret = url.searchParams.get("secret");
@@ -16,24 +15,25 @@ export async function GET(req: NextRequest) {
     secret === process.env.CRON_SECRET ||
     auth === `Bearer ${process.env.CRON_SECRET}`;
   if (!okAuth) return NextResponse.json({ ok: false }, { status: 401 });
+
   const chat_id = Number(process.env.TELEGRAM_ALLOWED_CHAT_ID);
   const db = supabaseAdmin();
-  const now = new Date();
-  const soon = addMinutes(now, 60);
-  const today = format(now, "yyyy-MM-dd");
+  const now = new Date();                          // 실제 UTC 순간
+  const soon = addMinutes(now, 60);                // +60분 (UTC instant)
+  const today = kstYMD(now);                       // KST 기준 오늘
+  const tomorrow = kstYMD(addMinutes(now, 60 * 24)); // KST 기준 내일
 
-  // 1. Todos within next 60 min (need due_time set)
+  // 1) 1시간 이내 시작 예정인 오늘의 할 일
   const { data: todos } = await db.from("todos").select("*")
     .eq("notified", false).eq("done", false).eq("due_date", today);
   const due: any[] = [];
   for (const t of todos || []) {
     if (!t.due_time) continue;
-    const dt = new Date(`${t.due_date}T${t.due_time}`);
+    const dt = kstWallTimeToInstant(t.due_date, t.due_time); // KST → UTC instant
     if (dt >= now && dt <= soon) due.push(t);
   }
 
-  // 2. Deadlines ending today or tomorrow
-  const tomorrow = format(addMinutes(now, 60 * 24), "yyyy-MM-dd");
+  // 2) 오늘 또는 내일 마감 데드라인
   const { data: dls } = await db.from("deadlines").select("*")
     .eq("notified", false).eq("done", false).in("end_date", [today, tomorrow]);
 
@@ -50,5 +50,5 @@ export async function GET(req: NextRequest) {
     sent++;
   }
 
-  return NextResponse.json({ ok: true, sent });
+  return NextResponse.json({ ok: true, sent, today, tomorrow });
 }
