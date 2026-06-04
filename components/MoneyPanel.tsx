@@ -43,8 +43,9 @@ export default function MoneyPanel({ withDivider = false }: { withDivider?: bool
 
   useEffect(() => {
     load();
+    const chName = `money-${Math.random().toString(36).slice(2)}`;
     const ch = supabase
-      .channel("money")
+      .channel(chName)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "incomes" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "settings" }, load)

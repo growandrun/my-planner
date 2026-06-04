@@ -37,8 +37,9 @@ export default function Page() {
 
   useEffect(() => {
     load();
+    const chName = `planner-${Math.random().toString(36).slice(2)}`;
     const ch = supabase
-      .channel("planner")
+      .channel(chName)
       .on("postgres_changes", { event: "*", schema: "public", table: "todos" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "deadlines" }, load)
       .on("postgres_changes", { event: "*", schema: "public", table: "goals" }, load)

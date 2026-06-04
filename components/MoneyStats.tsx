@@ -17,7 +17,7 @@ export default function MoneyStats({ onClose }: { onClose: () => void }) {
 
   useEffect(() => {
     supabase.from("expenses").select("*").then(({ data }) => setExpenses((data as Expense[]) ?? []));
-    const ch = supabase.channel("stats")
+    const ch = supabase.channel(`stats-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses" },
         async () => {
           const { data } = await supabase.from("expenses").select("*");
