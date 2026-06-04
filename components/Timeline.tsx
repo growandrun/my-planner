@@ -128,11 +128,11 @@ export default function Timeline({
         onMouseMove={onMouseMove}
         onMouseUp={onMouseUpOrLeave}
         onMouseLeave={onMouseUpOrLeave}
-        className="flex-1 overflow-x-auto overflow-y-hidden no-scrollbar select-none cursor-grab active:cursor-grabbing"
+        className="flex-1 overflow-x-auto overflow-y-auto no-scrollbar select-none cursor-grab active:cursor-grabbing"
       >
-        <div className="relative" style={{ width: totalDays * DAY_W, height: "100%" }}>
+        <div className="relative" style={{ width: totalDays * DAY_W }}>
           {/* Day grid header */}
-          <div className="flex sticky top-0 z-10">
+          <div className="flex sticky top-0 z-10 bg-neutral-900">
             {Array.from({ length: totalDays }).map((_, i) => {
               const d = addDays(origin, i);
               const isTodayCell = differenceInCalendarDays(d, today) === 0;
