@@ -56,7 +56,7 @@ export default function Page() {
           onSelectToday={() => setSelectedDate(format(new Date(), "yyyy-MM-dd"))}
           onAdd={() => setOpenModal({ kind: "todo", date: selectedDate })}
         />
-        <MoneyPanel />
+        <MoneyPanel withDivider />
       </aside>
       <main className="flex-1 flex flex-col gap-2 min-w-0">
         <div className="flex-1 bg-neutral-900 rounded-xl p-3 overflow-auto">
