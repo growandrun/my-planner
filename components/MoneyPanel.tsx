@@ -23,14 +23,22 @@ export default function MoneyPanel({ withDivider = false }: { withDivider?: bool
   const today = format(new Date(), "yyyy-MM-dd");
 
   async function load() {
-    const [e, i, s] = await Promise.all([
-      supabase.from("expenses").select("*").order("spent_at", { ascending: false }).order("created_at", { ascending: false }),
-      supabase.from("incomes").select("*").order("earned_at", { ascending: false }).order("created_at", { ascending: false }),
-      supabase.from("settings").select("value").eq("key", "starting_balance").maybeSingle(),
-    ]);
-    setExpenses((e.data as Expense[]) ?? []);
-    setIncomes((i.data as Income[]) ?? []);
-    setStartBalance(Number(s.data?.value ?? 0));
+    try {
+      const [eRes, iRes, sRes] = await Promise.allSettled([
+        supabase.from("expenses").select("*").order("spent_at", { ascending: false }).order("created_at", { ascending: false }),
+        supabase.from("incomes").select("*").order("earned_at", { ascending: false }).order("created_at", { ascending: false }),
+        supabase.from("settings").select("value").eq("key", "starting_balance").maybeSingle(),
+      ]);
+      const expArr = eRes.status === "fulfilled" && Array.isArray(eRes.value.data) ? (eRes.value.data as Expense[]) : [];
+      const incArr = iRes.status === "fulfilled" && Array.isArray(iRes.value.data) ? (iRes.value.data as Income[]) : [];
+      const setVal = sRes.status === "fulfilled" ? sRes.value.data?.value : 0;
+      setExpenses(expArr);
+      setIncomes(incArr);
+      setStartBalance(Number(setVal ?? 0));
+    } catch (err) {
+      console.error("[MoneyPanel.load] error", err);
+      setExpenses([]); setIncomes([]); setStartBalance(0);
+    }
   }
 
   useEffect(() => {
@@ -44,8 +52,8 @@ export default function MoneyPanel({ withDivider = false }: { withDivider?: bool
     return () => { supabase.removeChannel(ch); };
   }, []);
 
-  const totalSpent = expenses.reduce((s, e) => s + e.amount, 0);
-  const totalEarned = incomes.reduce((s, e) => s + e.amount, 0);
+  const totalSpent = expenses.reduce((s, e) => s + (Number(e?.amount) || 0), 0);
+  const totalEarned = incomes.reduce((s, e) => s + (Number(e?.amount) || 0), 0);
   const balance = startBalance - totalSpent + totalEarned;
   const todayExpenses = expenses.filter((e) => e.spent_at === today);
   const todayIncomes = incomes.filter((e) => e.earned_at === today);
@@ -55,9 +63,17 @@ export default function MoneyPanel({ withDivider = false }: { withDivider?: bool
   // ── 전체 내역: 날짜별로 묶기 (지출 + 수입 통합) ──
   type Row = { id: string; date: string; kind: "expense" | "income"; label: string; memo: string | null; amount: number };
   const allRows: Row[] = useMemo(() => {
+    const safeExp = Array.isArray(expenses) ? expenses : [];
+    const safeInc = Array.isArray(incomes) ? incomes : [];
     const r: Row[] = [
-      ...expenses.map((e) => ({ id: "e:" + e.id, date: e.spent_at, kind: "expense" as const, label: e.place, memo: e.memo, amount: e.amount })),
-      ...incomes.map((i) => ({ id: "i:" + i.id, date: i.earned_at, kind: "income" as const, label: i.source, memo: i.memo, amount: i.amount })),
+      ...safeExp.filter(Boolean).map((e) => ({
+        id: "e:" + (e.id || ""), date: e.spent_at || "", kind: "expense" as const,
+        label: e.place || "", memo: e.memo ?? null, amount: Number(e.amount) || 0,
+      })),
+      ...safeInc.filter(Boolean).map((i) => ({
+        id: "i:" + (i.id || ""), date: i.earned_at || "", kind: "income" as const,
+        label: i.source || "", memo: i.memo ?? null, amount: Number(i.amount) || 0,
+      })),
     ];
     r.sort((a, b) => (a.date === b.date ? 0 : a.date < b.date ? 1 : -1));
     return r;
