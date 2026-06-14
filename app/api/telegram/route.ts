@@ -457,19 +457,27 @@ export async function POST(req: NextRequest) {
     if (k === "prio" && state.step === "priority") {
       const priority = Number(v);
       const db = supabaseAdmin();
+      let res;
       if (state.kind === "todo") {
-        await db.from("todos").insert({
+        res = await db.from("todos").insert({
           title: state.title!, memo: state.memo || null,
           due_date: state.date!, due_time: state.time || null, priority,
         });
-        await sendMessage(chat_id, `✅ 할 일 저장됨\n<b>${state.title}</b>\n${state.date}${state.time ? " " + state.time.slice(0,5) : ""}${priority ? "\n" + "★".repeat(priority) : ""}${state.memo ? "\n💬 " + state.memo : ""}`);
       } else {
-        await db.from("deadlines").insert({
+        res = await db.from("deadlines").insert({
           title: state.title!, memo: state.memo || null,
           start_date: state.start_date!, end_date: state.end_date!,
           start_time: state.start_time || null, end_time: state.end_time || null,
           priority,
         });
+      }
+      if (res.error) {
+        await sendMessage(chat_id, `❌ 저장 실패\n<code>${res.error.message}</code>\n\n관리자가 Supabase에 컬럼 추가 SQL을 실행했는지 확인하세요:\n<code>alter table deadlines add column if not exists start_time time;\nalter table deadlines add column if not exists end_time time;</code>`);
+        return NextResponse.json({ ok: true });
+      }
+      if (state.kind === "todo") {
+        await sendMessage(chat_id, `✅ 할 일 저장됨\n<b>${state.title}</b>\n${state.date}${state.time ? " " + state.time.slice(0,5) : ""}${priority ? "\n" + "★".repeat(priority) : ""}${state.memo ? "\n💬 " + state.memo : ""}`);
+      } else {
         const st = state.start_time ? " " + state.start_time.slice(0,5) : "";
         const et = state.end_time ? " " + state.end_time.slice(0,5) : "";
         await sendMessage(chat_id, `✅ 데드라인 저장됨\n<b>${state.title}</b>\n${state.start_date}${st} ~ ${state.end_date}${et}${priority ? "\n" + "★".repeat(priority) : ""}${state.memo ? "\n💬 " + state.memo : ""}`);

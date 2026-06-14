@@ -21,12 +21,14 @@ export default function EventModal({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
 
   async function save() {
     if (!title.trim()) return;
-    setSaving(true);
+    setSaving(true); setErr(null);
+    let res;
     if (kind === "todo") {
-      await supabase.from("todos").insert({
+      res = await supabase.from("todos").insert({
         title: title.trim(),
         memo: memo.trim() || null,
         due_date: date,
@@ -34,7 +36,7 @@ export default function EventModal({
         priority,
       });
     } else {
-      await supabase.from("deadlines").insert({
+      res = await supabase.from("deadlines").insert({
         title: title.trim(),
         memo: memo.trim() || null,
         start_date: date,
@@ -45,6 +47,10 @@ export default function EventModal({
       });
     }
     setSaving(false);
+    if (res?.error) {
+      setErr(res.error.message || "저장에 실패했습니다.");
+      return;
+    }
     onSaved();
   }
 
@@ -96,6 +102,11 @@ export default function EventModal({
             ))}
           </div>
         </div>
+        {err && (
+          <div className="text-xs text-red-400 bg-red-950/40 border border-red-700/50 rounded p-2 break-words">
+            ❌ {err}
+          </div>
+        )}
         <div className="flex gap-2 justify-end">
           <button onClick={onClose} className="px-3 py-2 rounded bg-neutral-800">취소</button>
           <button onClick={save} disabled={saving || !title.trim()}
